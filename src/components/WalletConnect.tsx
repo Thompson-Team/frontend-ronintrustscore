@@ -16,34 +16,31 @@ export const WalletConnect = ({ onConnect }: WalletConnectProps) => {
     setConnecting(true);
 
     try {
-      // Simular conexión con Ronin Wallet
-      // En producción, usarías la librería de Ronin Wallet
       if (typeof (window as any).ronin === 'undefined') {
         toast({
-          title: 'Wallet no encontrada',
-          description: 'Por favor instala Ronin Wallet para continuar',
+          title: 'Wallet not found',
+          description: 'Please install Ronin Wallet to continue',
           variant: 'destructive'
         });
         setConnecting(false);
         return;
       }
 
-      // Simular obtención de dirección (mock)
       const mockAddress = '0x' + Math.random().toString(16).substring(2, 42);
       const mockSignature = 'mock_signature';
 
       await connectWallet(mockAddress, mockSignature);
-      
+
       toast({
-        title: 'Wallet conectada',
-        description: 'Tu wallet ha sido conectada exitosamente',
+        title: 'Wallet connected',
+        description: 'Your wallet has been successfully connected',
       });
 
       onConnect(mockAddress);
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'No se pudo conectar la wallet',
+        description: 'Failed to connect wallet',
         variant: 'destructive'
       });
     } finally {
@@ -59,7 +56,7 @@ export const WalletConnect = ({ onConnect }: WalletConnectProps) => {
       className="gap-2"
     >
       <Wallet className="w-5 h-5" />
-      {connecting ? 'Conectando...' : 'Conectar Ronin Wallet'}
+      {connecting ? 'Connecting...' : 'Connect Ronin Wallet'}
     </Button>
   );
 };
