@@ -35,7 +35,8 @@ export interface ReputationScore {
 export interface Question {
   id: string;
   question: string;
-  type: 'multiple' | 'text' | 'number' | 'multiselect';
+  type: 'multiple' | 'multiselect' | 'text' | 'number' | 'vlayer-verification';
   options?: string[];
   placeholder?: string;
+  required?: boolean;
 }

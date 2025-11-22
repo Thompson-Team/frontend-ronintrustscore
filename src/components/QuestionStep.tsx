@@ -4,15 +4,27 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { VlayerVerificationStep } from './VlayerVerificationStep';
 
 interface QuestionStepProps {
   question: Question;
   value: any;
   onChange: (value: any) => void;
+  walletAddress?: string;
 }
 
-export const QuestionStep = ({ question, value, onChange }: QuestionStepProps) => {
+export const QuestionStep = ({ question, value, onChange, walletAddress }: QuestionStepProps) => {
   const renderInput = () => {
+    if (question.type === 'vlayer-verification') {
+      return (
+        <VlayerVerificationStep
+          walletAddress={walletAddress || ''}
+          value={value}
+          onChange={onChange}
+        />
+      );
+    }
+
     switch (question.type) {
       case 'multiple':
         return (

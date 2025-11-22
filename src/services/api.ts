@@ -105,3 +105,96 @@ export const getWalletScore = async (address: string): Promise<ReputationScore |
   if (!response.ok) throw new Error('Failed to fetch wallet score');
   return response.json();
 };
+/**
+ * Verificar Twitter con Vlayer
+ * POST /api/vlayer/verify-twitter
+ */
+export const verifyTwitter = async (
+  walletAddress: string, 
+  twitterHandle: string
+): Promise<{
+  verified: boolean;
+  followerCount: number;
+  proof: string;
+  timestamp: string;
+}> => {
+  if (MOCK_MODE) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simular verificación con 80% de éxito
+        const hasEnoughFollowers = Math.random() > 0.2;
+        
+        if (hasEnoughFollowers) {
+          resolve({
+            verified: true,
+            followerCount: Math.floor(Math.random() * 500) + 100,
+            proof: 'zk_proof_' + Math.random().toString(36).substring(7),
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          reject(new Error('Not enough followers. You need at least 100 followers.'));
+        }
+      }, 2000);
+    });
+  }
+
+  const response = await fetch(`${API_BASE_URL}/vlayer/verify-twitter`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ walletAddress, twitterHandle })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to verify Twitter');
+  }
+  
+  return response.json();
+};
+
+/**
+ * Verificar Google con Vlayer y Vouch
+ * POST /api/vlayer/verify-google
+ */
+export const verifyGoogle = async (
+  walletAddress: string,
+  googleEmail: string
+): Promise<{
+  verified: boolean;
+  vouchScore: number;
+  proof: string;
+  timestamp: string;
+}> => {
+  if (MOCK_MODE) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simular verificación con 85% de éxito
+        const isValid = Math.random() > 0.15;
+        
+        if (isValid) {
+          resolve({
+            verified: true,
+            vouchScore: Math.floor(Math.random() * 30) + 70,
+            proof: 'zk_proof_' + Math.random().toString(36).substring(7),
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          reject(new Error('Could not verify Google account with Vouch.'));
+        }
+      }, 2000);
+    });
+  }
+
+  const response = await fetch(`${API_BASE_URL}/vlayer/verify-google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ walletAddress, googleEmail })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to verify Google');
+  }
+  
+  return response.json();
+};

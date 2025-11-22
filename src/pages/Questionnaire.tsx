@@ -28,9 +28,15 @@ const Questionnaire = () => {
   const currentQuestion = questions[currentStep];
   const progress = ((currentStep + 1) / questions.length) * 100;
   const isLastQuestion = currentStep === questions.length - 1;
-  const canProceed =
-    answers[currentQuestion.id] !== undefined &&
-    answers[currentQuestion.id] !== '';
+  const canProceed = (() => {
+    const answer = answers[currentQuestion.id];
+    
+    if (currentQuestion.type === 'vlayer-verification') {
+      return answer?.twitter?.verified && answer?.google?.verified;
+    }
+    
+    return answer !== undefined && answer !== '';
+  })();
 
   const handleAnswer = (value: any) => {
     setAnswers({ ...answers, [currentQuestion.id]: value });
@@ -98,6 +104,7 @@ const Questionnaire = () => {
               question={currentQuestion}
               value={answers[currentQuestion.id]}
               onChange={handleAnswer}
+              walletAddress={walletAddress} 
             />
           </div>
 
