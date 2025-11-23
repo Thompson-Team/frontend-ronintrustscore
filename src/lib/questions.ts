@@ -24,12 +24,6 @@ export const questions: Question[] = [
     ]
   },
   {
-    id: 'vlayer_verification',
-    type: 'vlayer-verification',
-    question: 'Identity Verification', // No se muestra, el componente tiene su propio título
-    required: true
-  },
-  {
     id: 'q3_behavior',
     question: 'How would you describe your behavior in online communities or games?',
     type: 'text',

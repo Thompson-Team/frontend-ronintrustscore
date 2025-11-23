@@ -13,8 +13,22 @@ declare global {
   }
 }
 
+interface ChainConfig {
+  chainId: number;
+  chainName: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls: string[];
+  blockExplorerUrls: string[];
+}
+
 export class RoninWalletService {
   private provider: RoninWalletProvider | null = null;
+  private accountsChangedHandlers: Array<(accounts: string[]) => void> = [];
+  private chainChangedHandlers: Array<(chainId: string) => void> = [];
 
   /**
    * Detecta si Ronin Wallet está instalada
@@ -27,9 +41,9 @@ export class RoninWalletService {
   /**
    * Obtiene el provider de Ronin
    */
-  getProvider(): RoninWalletProvider {
+  getProvider(): RoninWalletProvider | null {
     if (!this.isInstalled()) {
-      throw new Error('Ronin Wallet is not installed. Please install it from https://wallet.roninchain.com/');
+      return null;
     }
     
     if (!this.provider) {
@@ -44,6 +58,10 @@ export class RoninWalletService {
    */
   async connect(): Promise<string> {
     const provider = this.getProvider();
+    
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed. Please install it from https://wallet.roninchain.com/');
+    }
     
     try {
       // Solicitar acceso a la wallet
@@ -70,6 +88,10 @@ export class RoninWalletService {
   async getAccounts(): Promise<string[]> {
     const provider = this.getProvider();
     
+    if (!provider) {
+      return [];
+    }
+    
     const accounts = await provider.request({
       method: 'eth_accounts'
     });
@@ -82,6 +104,10 @@ export class RoninWalletService {
    */
   async signMessage(address: string, message: string): Promise<string> {
     const provider = this.getProvider();
+
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed');
+    }
 
     try {
       const signature = await provider.request({
@@ -104,6 +130,10 @@ export class RoninWalletService {
   async getBalance(address: string): Promise<string> {
     const provider = this.getProvider();
 
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed');
+    }
+
     const balance = await provider.request({
       method: 'eth_getBalance',
       params: [address, 'latest']
@@ -115,14 +145,79 @@ export class RoninWalletService {
   /**
    * Obtiene la chain ID actual
    */
-  async getChainId(): Promise<string> {
+  async getChainId(): Promise<number> {
     const provider = this.getProvider();
+
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed');
+    }
 
     const chainId = await provider.request({
       method: 'eth_chainId'
     });
 
-    return chainId;
+    // Convertir hex a decimal
+    return parseInt(chainId, 16);
+  }
+
+  /**
+   * Cambia a una red específica
+   */
+  async switchChain(chainId: number): Promise<void> {
+    const provider = this.getProvider();
+
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed');
+    }
+
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${chainId.toString(16)}` }]
+      });
+    } catch (error: any) {
+      // Si la red no está agregada (error 4902), lanzar el error para manejarlo
+      if (error.code === 4902) {
+        throw error;
+      }
+      
+      if (error.code === 4001) {
+        throw new Error('User rejected the network switch request');
+      }
+      
+      throw new Error(error.message || 'Failed to switch network');
+    }
+  }
+
+  /**
+   * Agrega una nueva red a la wallet
+   */
+  async addChain(config: ChainConfig): Promise<void> {
+    const provider = this.getProvider();
+
+    if (!provider) {
+      throw new Error('Ronin Wallet is not installed');
+    }
+
+    try {
+      await provider.request({
+        method: 'wallet_addEthereumChain',
+        params: [
+          {
+            chainId: `0x${config.chainId.toString(16)}`,
+            chainName: config.chainName,
+            nativeCurrency: config.nativeCurrency,
+            rpcUrls: config.rpcUrls,
+            blockExplorerUrls: config.blockExplorerUrls,
+          }
+        ]
+      });
+    } catch (error: any) {
+      if (error.code === 4001) {
+        throw new Error('User rejected adding the network');
+      }
+      throw new Error(error.message || 'Failed to add network');
+    }
   }
 
   /**
@@ -130,6 +225,13 @@ export class RoninWalletService {
    */
   onAccountsChanged(callback: (accounts: string[]) => void): void {
     const provider = this.getProvider();
+    
+    if (!provider) {
+      console.warn('Ronin Wallet is not installed');
+      return;
+    }
+
+    this.accountsChangedHandlers.push(callback);
     
     if (provider.on) {
       provider.on('accountsChanged', callback);
@@ -142,6 +244,13 @@ export class RoninWalletService {
   onChainChanged(callback: (chainId: string) => void): void {
     const provider = this.getProvider();
     
+    if (!provider) {
+      console.warn('Ronin Wallet is not installed');
+      return;
+    }
+
+    this.chainChangedHandlers.push(callback);
+    
     if (provider.on) {
       provider.on('chainChanged', callback);
     }
@@ -151,10 +260,31 @@ export class RoninWalletService {
    * Desconectar listeners
    */
   removeAllListeners(): void {
-    if (this.provider?.removeListener) {
-      this.provider.removeListener('accountsChanged', () => {});
-      this.provider.removeListener('chainChanged', () => {});
+    const provider = this.getProvider();
+    
+    if (!provider?.removeListener) {
+      return;
     }
+
+    // Remover todos los handlers de accountsChanged
+    this.accountsChangedHandlers.forEach(handler => {
+      provider.removeListener!('accountsChanged', handler);
+    });
+    this.accountsChangedHandlers = [];
+
+    // Remover todos los handlers de chainChanged
+    this.chainChangedHandlers.forEach(handler => {
+      provider.removeListener!('chainChanged', handler);
+    });
+    this.chainChangedHandlers = [];
+  }
+
+  /**
+   * Desconecta la wallet (limpia el estado local)
+   */
+  disconnect(): void {
+    this.removeAllListeners();
+    this.provider = null;
   }
 }
 
